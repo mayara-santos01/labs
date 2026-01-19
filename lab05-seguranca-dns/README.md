@@ -54,7 +54,7 @@ Sendo que será requisitada uma senha e sua confirmação, podendo ser utilizada
 Após a configuração e inicialização do serviço SSH, podemos tentar acessá-lo a partir do h101, executando o seguinte comando:
 
 ```
-ssh root@192.2.0.2
+ssh myuser@192.2.0.2
 ```
 
 Porém, inicialmente não será observada nenhuma saída. Após alguns minutos, o comando terá a seguinte saída de erro:
