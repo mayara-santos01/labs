@@ -39,7 +39,7 @@ tcp        0      0 0.0.0.0:22              0.0.0.0:*               LISTEN
 tcp6       0      0 :::22                   :::*                    LISTEN     
 ```
 
-Que representa que o aparelho está à escuta de novas conexões na porta 22, o que indica que o serviço SSH está ativo. Após isso, será possível acessar remotamente o host _randomSrv_ através do protocolo SSH.
+Que representa que o aparelho está à escuta de novas conexões na porta 22, o que indica que o serviço SSH está ativo. Após isso, será possível acessar remotamente o host _randomsSrv_ através do protocolo SSH.
 
 Após iniciar o serviço SSH, podemos configurar um usuário para permitir o acesso remoto. Para isso, podemos executar o seguinte comando no _randomSrv_:
 
@@ -54,7 +54,7 @@ Sendo que será requisitada uma senha e sua confirmação, podendo ser utilizada
 Após a configuração e inicialização do serviço SSH, podemos tentar acessá-lo a partir do h101, executando o seguinte comando:
 
 ```
-ssh myuser@192.2.0.2
+ssh root@192.2.0.2
 ```
 
 Porém, inicialmente não será observada nenhuma saída. Após alguns minutos, o comando terá a seguinte saída de erro:
@@ -70,9 +70,9 @@ Isso ocorre por conta das regras estabelecidas no fw101, as quais liberam tráfe
 
 Após verificarmos que não é possível acesar o serviço SSH a partir do h101, iremos estabelecer um túnel DNS, a partir do qual poderemos permitir tráfego SSH na Rede Corporativa HackInSDN por meio de requisições DNS. Ao longo dessa atividade, você irá entender sobre como esse processo é estabelecido.
 
-### 🔹 Atividade 2.1: Iniciando o servidor do túnel no randomSrv
+### 🔹 Atividade 2.1: Iniciando o servidor do túnel no srv201
 
-O _randomSrv_ irá atuar como servidor do túnel DNS, de modo que ele irá resolver os nomes de domínios que serão criados posteriormente para estabelecimento do túnel. Para iniciar o servidor DNS, primeiro é preciso instalar o iodine, ferramenta a qual será utilizada para estabelecer o túnel. Para isso, podemos executar os seguintes comandos no terminal do Mininet-Sec:
+O _srv201_ irá atuar como servidor do túnel DNS, de modo que ele irá resolver os nomes de domínios que serão criados posteriormente para estabelecimento do túnel. Para iniciar o servidor DNS, primeiro é preciso instalar o iodine, ferramenta a qual será utilizada para estabelecer o túnel. Para isso, podemos executar os seguintes comandos no terminal do Mininet-Sec:
 
 ```
 apt update && apt install iodine -y
@@ -82,7 +82,7 @@ mknod /dev/net/tun c 10 200
 chmod 666 /dev/net/tun
 ```
 
-Após isso, podemos executar o seguinte comando no host _randomSrv_:
+Após isso, podemos executar o seguinte comando no host _srv201_:
 
 ```
 iodined -f -c -P SuperSecretPassword 10.199.199.1/24 t1.teste.ufba.com
@@ -97,12 +97,12 @@ Sendo que o comando possui os seguintes parâmetros:
 5. `10.199.199.1/24`: Máscara de rede a partir da qual serão definidos os endereços dos hosts no contexto do túnel;
 6. `t1.teste.ufba.com`: Nome de domínio a partir do qual serão enviados.
 
-De modo que o randomSrv, como servidor do túnel DNS, passa a esperar requisições do cliente para estabelecer o túnel. 
+De modo que o srv201, como servidor do túnel DNS, passa a esperar requisições do cliente para estabelecer o túnel. 
 
 A saída do comando deve ser a seguinte:
 
 ```
-root@randomSrv:~# iodined -f -c -P SuperSecretPassword 10.199.199.1/24 t1.teste.ufba.com
+root@srv201:~# iodined -f -c -P SuperSecretPassword 10.199.199.1/24 t1.teste.ufba.com
 Opened dns0
 Setting IP of dns0 to 10.199.199.1
 Setting MTU of dns0 to 1130
@@ -112,7 +112,7 @@ Listening to dns for domain t1.teste.ufba.com
 
 ### 🔹 Atividade 2.2: Iniciando o serviço Mnsec-Bind9 no fw101
 
-Para estabelecer um túnel DNS, é preciso criar os nomes de domínios os quais serão utilizados para comunicação dentro do túnel. Nesse sentido, iremos utilizar o host _fw101_ para criação de nomes de domínios os quais serão resolvidos no host _randomSrv_, de forma que o _h101_ poderá se comunicar com o _randomSrv_ através de requisições DNS, o que permitirá estabelecimento do túnel.
+Para estabelecer um túnel DNS, é preciso criar os nomes de domínios os quais serão utilizados para comunicação dentro do túnel. Nesse sentido, iremos utilizar o host _fw101_ para criação de nomes de domínios os quais serão resolvidos no host _srv201_, de forma que o _h101_ poderá se comunicar com o _srv201_ através de requisições DNS, o que permitirá estabelecimento do túnel.
 
 Nesse sentido, é preciso permitir comunicação entre processos internos, a partir da permissão de tráfego na interface _loopback_ do _fw101_. Esse processo é necessário para viabilizar a resolução de nomes, pois permite que o processo que recebe a requisição DNS possa solicite um roteamento para fazer com a requisição chegue ao destino. Para isso, execute no terminal do _fw101_:
 
@@ -131,30 +131,30 @@ Sendo que o primeiro comando inicia o serviço msec-bind9, enquanto o segundo ad
 
 ### 🔹 Atividade 2.3: Criação de domínios no fw101 utilizando o serviço Mnsec-Bind9
 
-Após isso, iremos adicionar alguns registros DNS ao nome de domínio, para permitir a resolução de nomes. Primeiro, iremos adicionar um registro do tipo A, o qual é resolvido diretamente em um endereço IP, nesse caso, o IP do host _randomSrv_, permitindo o envio de requisições DNS para ele. Nesse sentido, execute o seguinte comando no host _fw101_:
+Após isso, iremos adicionar alguns registros DNS ao nome de domínio, para permitir a resolução de nomes. Primeiro, iremos adicionar um registro do tipo A, o qual é resolvido diretamente em um endereço IP, nesse caso, o IP do host _srv201_, permitindo o envio de requisições DNS para ele. Nesse sentido, execute o seguinte comando no host _fw101_:
 
 ```
-service-mnsec-bind9.sh fw101 --add-entry teste.ufba.com randomSrv IN A 203.0.113.2
+service-mnsec-bind9.sh fw101 --add-entry teste.ufba.com srv201 IN A 203.0.113.2
 ```
 
-Dessa forma, se um host tentar resolver o nome de domínio _teste.ufba.br_, a requisição será enviada para o IP do _randomSrv_.
+Dessa forma, se um host tentar resolver o nome de domínio _teste.ufba.br_, a requisição será enviada para o IP do _srv201_.
 
 Após isso, definiremos um registro DNS do tipo NS (Name Server), o qual será utilizado para estabelecer o túnel DNS. O registro do tipo NS é associado a um outro nome de domínio, que pode ter um registro do tipo A, por exemplo, o qual é resolvido por um host que podemos chamar de servidor autoritário. 
 
 Nesse contexto, quando uma requisição é enviada para um nome de domínio que tem registro do tipo NS, a requisição é enviada para o servidor autoritário, o qual resolve o nome de domínio associado ao registro NS.
 
-Tendo isso em vista, no túnel DNS, o registro NS será utilizado para estabelecer o túnel e será associado a um nome de domínio com registro A associado ao IP do host _randomSrv_, de modo que as requisições para o primeiro, enviadas a partir do _h101_, serão encaminhadas para o segundo, permitindo comunicação entre o _h101_ e o _randomSrv_ através de requisições DNS.
+Tendo isso em vista, no túnel DNS, o registro NS será utilizado para estabelecer o túnel e será associado a um nome de domínio com registro A associado ao IP do host _srv201_, de modo que as requisições para o primeiro, enviadas a partir do _h101_, serão encaminhadas para o segundo, permitindo comunicação entre o _h101_ e o _srv201_ através de requisições DNS.
 
-Considerando isso, iremos adicionar um registro do tipo NS associado ao registro do tipo A atrelado ao IP do _randomSrv_, executando o seguinte comando:
+Considerando isso, iremos adicionar um registro do tipo NS associado ao registro do tipo A atrelado ao IP do _srv201_, executando o seguinte comando:
 
 ```
-service-mnsec-bind9.sh fw101 --add-entry teste.ufba.com t1 IN NS randomSrv
+service-mnsec-bind9.sh fw101 --add-entry teste.ufba.com t1 IN NS srv201
 ```
 
 Após isso, podemos executar alguns comandos no _h101_ para verificar se a resolução de domínios ocorre corretamente, sendo que:
 
 1. O primeiro comando envia uma requisição para o servidor DNS localizado no fw101 para obter informações sobre o nome de domínio _teste.ufba.br_;
-2. O segundo comando envia uma requisição para o servidor DNS localizado no fw101 para obter informações sobre o nome de domínio do tipo A _randomSrv.teste.ufba.br_;
+2. O segundo comando envia uma requisição para o servidor DNS localizado no fw101 para obter informações sobre o nome de domínio do tipo A _srv201.teste.ufba.br_;
 3. O segundo comando envia uma requisição para o servidor DNS localizado no fw101 para obter informações sobre o nome de domínio do tipo NS _t1.teste.ufba.br_;
 
 Primeiramente, precisamos fazer o _download_ da ferramenta _dnsutils_, a qual inclui a ferramenta _dig_, a qual iremos utilizar para obter informações dos domínios criados. Para isso, devemos executar os seguintes comandos no terminal do _Mininet-Sec_:
@@ -175,7 +175,7 @@ Tendo feito isso, podemos executar os seguintes comandos no _h101_ para verifica
 
 ```
 dig teste.ufba.com
-dig randomSrv.teste.ufba.com A
+dig srv201.teste.ufba.com A
 dig t1.teste.ufba.com NS
 ```
 
@@ -210,9 +210,9 @@ teste.ufba.com.         604800  IN      A       127.0.0.1
 **Saída do segundo comando**
 
 ```
-root@h101:~# dig randomSrv.teste.ufba.com A
+root@h101:~# dig srv201.teste.ufba.com A
 
-; <<>> DiG 9.18.33-1~deb12u2-Debian <<>> randomSrv.teste.ufba.com A
+; <<>> DiG 9.18.33-1~deb12u2-Debian <<>> srv201.teste.ufba.com A
 ;; global options: +cmd
 ;; Got answer:
 ;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 58553
@@ -222,10 +222,10 @@ root@h101:~# dig randomSrv.teste.ufba.com A
 ; EDNS: version: 0, flags:; udp: 1232
 ; COOKIE: c4ab9f288ebb655701000000685037d56b0f4f7c496fc856 (good)
 ;; QUESTION SECTION:
-;randomSrv.teste.ufba.com.         IN      A
+;srv201.teste.ufba.com.         IN      A
 
 ;; ANSWER SECTION:
-randomSrv.teste.ufba.com.  604800  IN      A       203.0.113.2
+srv201.teste.ufba.com.  604800  IN      A       203.0.113.2
 
 ;; Query time: 4 msec
 ;; SERVER: 198.51.100.1#53(198.51.100.1) (UDP)
@@ -270,7 +270,7 @@ Sabendo que iniciamos o servidor do túnel na atividade 2.1, podemos então cone
 iodine -f -r -P SuperSecretPassword 198.51.100.1 t1.teste.ufba.com
 ```
 
-O qual possui quase os mesmos parâmetros do comando anterior, e que promove o envio de requisições DNS do _h101_ para o _randomSrv_, as quais possuem características as quais farão o _randomSrv_ iniciar a conexão do túnel. O parâmetro `-r` é usado para anular o teste de envio de pacotes UDP para o servidor.
+O qual possui quase os mesmos parâmetros do comando anterior, e que promove o envio de requisições DNS do _h101_ para o _srv201_, as quais possuem características as quais farão o _srv201_ iniciar a conexão do túnel. O parâmetro `-r` é usado para anular o teste de envio de pacotes UDP para o servidor.
 
 Após a execução desse comando, o túnel será iniciado, como podemos observar na seguinte saída do _h101_:
 
@@ -298,16 +298,16 @@ Setting downstream fragment size to max 934...
 Connection setup complete, transmitting data.
 ```
 
-Após isso, podemos verificar a conectividade no túnel executando o seguinte comando no _randomSrv_:
+Após isso, podemos verificar a conectividade no túnel executando o seguinte comando no _srv201_:
 
 ```
 ping -c 5 10.199.199.2
 ```
 
-Cuja seguinte saída indica que o _randomSrv_ consegue se conectar ao _h101_ através do túnel:
+Cuja seguinte saída indica que o _srv201_ consegue se conectar ao _h101_ através do túnel:
 
 ```
-root@randomSrv:~# ping -c 5 10.199.199.2
+root@srv201:~# ping -c 5 10.199.199.2
 PING 10.199.199.2 (10.199.199.2) 56(84) bytes of data.
 64 bytes from 10.199.199.2: icmp_seq=1 ttl=64 time=2.61 ms
 64 bytes from 10.199.199.2: icmp_seq=2 ttl=64 time=3.08 ms
@@ -320,7 +320,7 @@ PING 10.199.199.2 (10.199.199.2) 56(84) bytes of data.
 rtt min/avg/max/mdev = 2.605/3.045/3.675/0.353 ms
 ```
 
-Além disso, podemos executar o seguinte comando no _h101_ para verificar se ele consegue se conectar ao _randomSrv_ no contexto do túnel:
+Além disso, podemos executar o seguinte comando no _h101_ para verificar se ele consegue se conectar ao _srv201_ no contexto do túnel:
 
 ```
 ping -c 5 10.199.199.1
@@ -352,15 +352,15 @@ Nesse sentido, o primeiro passo é executar o seguinte comando no _h101_:
 ip route add 192.2.0.2 via 10.199.199.1
 ```
 
-Ao executarmos esse comando, adicionamos uma nova regra de roteamento no _h101_, a qual faz com que os pacotes que tenham como destino o _randomSrv_, que possui o IP 192.2.0.2, sejam encaminhados ao IP 10.199.199.1, que corresponde à interface do _randomSrv_ a qual é utilizada pelo mesmo para se comunicar no túnel.
+Ao executarmos esse comando, adicionamos uma nova regra de roteamento no _h101_, a qual faz com que os pacotes que tenham como destino o _randomSrv_, que possui o IP 192.2.0.2, sejam encaminhados ao IP 10.199.199.1, que corresponde à interface do _srv201_ a qual é utilizada pelo mesmo para se comunicar no túnel.
 
-Após isso, vamos executar o seguinte comando no _srv1_, para fazer com que todos os pacotes que saiam pela interface randomSrv-eth0 tenham seu IP de origem alterado para o IP da interface:
+Após isso, vamos executar o seguinte comando no _srv1_, para fazer com que todos os pacotes que saiam pela interface srv201-eth0 tenham seu IP de origem alterado para o IP da interface:
 
 ```
-iptables -t nat -A POSTROUTING -o randomSrv-eth0 -j MASQUERADE
+iptables -t nat -A POSTROUTING -o srv201-eth0 -j MASQUERADE
 ```
 
-Isso é útil pois faz com que os pacotes originados nas interfaces relativas ao túnel em _h101_ ou _randomSrv_ possam ser encaminhados para outros hosts com o IP legítimo da interface randomSrv-eth0, o qual está incluído em regras de roteamento dos outros hosts.
+Isso é útil pois faz com que os pacotes originados nas interfaces relativas ao túnel em _h101_ ou _srv201_ possam ser encaminhados para outros hosts com o IP legítimo da interface srv201-eth0, o qual está incluído em regras de roteamento dos outros hosts.
 
 ### 🔹 Atividade 2.6: Conectando o h101 ao serviço SSH do randomSRV via túnel DNS:
 
@@ -405,14 +405,14 @@ Indicando que o acesso ao usuário remoto foi feito com sucesso. Nesse sentido, 
 Sendo que:
 
 1. Etapa 1: Representa o envio da requisição DNS pelo _h101_ no contexto do túnel, contendo a solicitação de acesso ao serviço SSH do _randomSrv_, para o _fw101_, que foi configurado como resolvedor DNS do _h101_;
-2. Etapa 2: Representa o envio da requisição DNS para o _randomSrv_, configurado para resolver o nome de domínio usado para estabelecer o túnel, através da conexão entre o _fw101_ e o _r201_;
-3. Etapa 3: Após receber a requisição DNS, o _randomSrv_ a desencapsula, analisa suas informações e verifica a solicitação de acesso ao serviço SSH do _randomSrv_, e o encaminha para o mesmo, fazendo com que a conexão de um cliente a um servidor SSH ocorra através de um túnel DNS
+2. Etapa 2: Representa o envio da requisição DNS para o _srv201_, configurado para resolver o nome de domínio usado para estabelecer o túnel, através da conexão entre o _fw101_ e o _r201_;
+3. Etapa 3: Após receber a requisição DNS, o _srv201_ a desencapsula, analisa suas informações e verifica a solicitação de acesso ao serviço SSH do _randomSrv_, e o encaminha para o mesmo, fazendo com que a conexão de um cliente a um servidor SSH ocorra através de um túnel DNS
 
-Após isso, o _randomSrv_ recebe as informações necessárias e responde à solicitação do _h101_. Quando a resposta chega ao _randomSrv_, ela é encapsulada em uma resposta DNS a qual é enviada para o _h101_ no túnel, de forma que este último consegue acessar o serviço SSH do randomSrv apesar das restrições de tráfego da rede corporativa HackInSDN.
+Após isso, o _randomSrv_ recebe as informações necessárias e responde à solicitação do _h101_. Quando a resposta chega ao _srv201_, ela é encapsulada em uma resposta DNS a qual é enviada para o _h101_ no túnel, de forma que este último consegue acessar o serviço SSH do randomSrv apesar das restrições de tráfego da rede corporativa HackInSDN.
 
 ### 🔹 Atividade 2.7: Encerrando a conexão ao túnel
 
-Após a realização das atividades, o túnel DNS pode ser encerrado utilizando as teclas `Ctrl+C` nos terminais do _randomSrv_ e _h101_.
+Após a realização das atividades, o túnel DNS pode ser encerrado utilizando as teclas `Ctrl+C` nos terminais do _srv201_ e _h101_.
 
 ## 🔷 Atividade 3: Verificação da criação de logs no Zeek
 
@@ -466,7 +466,7 @@ service-mnsec-bind9.sh fw101 --start
 ```
 
 > [!IMPORTANT]
-> Perceba que estamos utilizando o IP do randomSrv para hospedar mais de um nome de domínio, o que é totalmente possível e aplicável na vida real, onde um servidor pode hospedar vários nomes de domínio. Você conhecia essa possibilidade? Escreva sobre o seu entendimento acerca da relação entre servidores e os domínios os quais eles podem hospedar.
+> Perceba que estamos utilizando o IP do srv201 para hospedar mais de um nome de domínio, o que é totalmente possível e aplicável na vida real, onde um servidor pode hospedar vários nomes de domínio. Você conhecia essa possibilidade? Escreva sobre o seu entendimento acerca da relação entre servidores e os domínios os quais eles podem hospedar.
 <textarea name="resposta_dump_manual" rows="6" cols="80" placeholder="Escreva sua resposta aqui..."> </textarea>
 
 ### 🔹 Atividade 3.3: Acesso e análise dos domínios benignos
@@ -527,7 +527,7 @@ zeek -i br0 ../dns_lab_script.zeek
 
 Para verificar as informações relativas aos domínios gerados aleatoriamente no contexto do tunelamento DNS, podemos iniciar o túnel utilizando os comandos previamente abordados:
 
-Iniciando o servidor do túnel no _randomSrv_:
+Iniciando o servidor do túnel no _srv201_:
 
 ```
 iodined -f -c -P SuperSecretPassword 10.199.199.1/24 t1.teste.ufba.com
